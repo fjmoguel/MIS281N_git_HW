@@ -1,0 +1,4 @@
+It has always been of great interest to me how we can use branches to work with so many people at the same time, and achieve our goals faster.
+One of the sentences that summed uo what I liked the most about this is "Another way to view a branch is to consider it an extremely long-lived database transaction that provides Snapshot Isolation.".
+Moreover, I enjoyed reading more about how to automate this processes, and the use of hooks. I had only used hooks on react for state changes in web pages so seeing another type
+for version control was interesting.
