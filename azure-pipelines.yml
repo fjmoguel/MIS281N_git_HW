@@ -11,7 +11,7 @@ variables:
 steps:
 - checkout: self
 
-- script: echo "Repo checked out successfully!"
+- script: echo "✅ Repo checked out successfully! Files are in $(System.DefaultWorkingDirectory)"
   displayName: 'Initial check'
 
 # Install SQL tools
@@ -30,25 +30,33 @@ steps:
   displayName: 'Load first 50 rows (brand-detail)'
   inputs:
     script: |
-      head -n 51 "$(System.DefaultWorkingDirectory)/MIS281N_git_HW/brand-detail-url-etc_0_0_0.csv" > temp.csv
-      /opt/mssql-tools18/bin/sqlcmd -S $SQL_SERVER -U $SQL_USER -P $SQL_PASSWORD -d $SQL_DB -Q "
-        IF OBJECT_ID('brand_detail_stage') IS NULL
-          CREATE TABLE brand_detail_stage(line NVARCHAR(MAX));
-        BULK INSERT brand_detail_stage
-        FROM '$(System.DefaultWorkingDirectory)/MIS281N_git_HW/temp.csv'
-        WITH (FIELDTERMINATOR = ',', ROWTERMINATOR = '\n', FIRSTROW = 2);
-      "
+      cd "$(System.DefaultWorkingDirectory)"
+      head -n 51 brand-detail-url-etc_0_0_0.csv > temp.csv
+      echo "IF OBJECT_ID('brand_detail_stage') IS NULL CREATE TABLE brand_detail_stage(line NVARCHAR(MAX));" > sql_commands.sql
+      while IFS= read -r line; do
+        escaped_line=$(echo "$line" | sed "s/'/''/g")
+        echo "INSERT INTO brand_detail_stage VALUES ('$escaped_line');" >> sql_commands.sql
+      done < temp.csv
+      /opt/mssql-tools18/bin/sqlcmd -S "$SQL_SERVER" -U "$SQL_USER" -P "$SQL_PASSWORD" -d "$SQL_DB" -i sql_commands.sql
 
 # Load first 50 rows (daily-spend)
 - task: CmdLine@2
   displayName: 'Load first 50 rows (daily-spend)'
   inputs:
     script: |
-      head -n 51 "$(System.DefaultWorkingDirectory)/MIS281N_git_HW/2021-01-19--data_01be88c2-0306-48b3-0042-fa0703282ad6_1304_5_0.csv" > temp2.csv
-      /opt/mssql-tools18/bin/sqlcmd -S $SQL_SERVER -U $SQL_USER -P $SQL_PASSWORD -d $SQL_DB -Q "
-        IF OBJECT_ID('daily_spend_stage') IS NULL
-          CREATE TABLE daily_spend_stage(line NVARCHAR(MAX));
-        BULK INSERT daily_spend_stage
-        FROM '$(System.DefaultWorkingDirectory)/MIS281N_git_HW/temp2.csv'
-        WITH (FIELDTERMINATOR = ',', ROWTERMINATOR = '\n', FIRSTROW = 2);
-      "
+      cd "$(System.DefaultWorkingDirectory)"
+      head -n 51 2021-01-19--data_01be88c2-0306-48b3-0042-fa0703282ad6_1304_5_0.csv > temp2.csv
+      echo "IF OBJECT_ID('daily_spend_stage') IS NULL CREATE TABLE daily_spend_stage(line NVARCHAR(MAX));" > sql_commands2.sql
+      while IFS= read -r line; do
+        escaped_line=$(echo "$line" | sed "s/'/''/g")
+        echo "INSERT INTO daily_spend_stage VALUES ('$escaped_line');" >> sql_commands2.sql
+      done < temp2.csv
+      /opt/mssql-tools18/bin/sqlcmd -S "$SQL_SERVER" -U "$SQL_USER" -P "$SQL_PASSWORD" -d "$SQL_DB" -i sql_commands2.sql
+
+# Optional: verify that rows loaded
+- task: CmdLine@2
+  displayName: 'Verify data load'
+  inputs:
+    script: |
+      /opt/mssql-tools18/bin/sqlcmd -S "$SQL_SERVER" -U "$SQL_USER" -P "$SQL_PASSWORD" -d "$SQL_DB" -Q "SELECT TOP 5 * FROM brand_detail_stage;"
+      /opt/mssql-tools18/bin/sqlcmd -S "$SQL_SERVER" -U "$SQL_USER" -P "$SQL_PASSWORD" -d "$SQL_DB" -Q "SELECT TOP 5 * FROM daily_spend_stage;"
