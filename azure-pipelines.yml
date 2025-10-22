@@ -1,0 +1,12 @@
+# azure-pipelines.yml
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- script: echo "CI pipeline connected to GitHub successfully!"
+  displayName: 'Run sample step'
